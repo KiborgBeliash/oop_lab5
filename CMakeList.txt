@@ -1,0 +1,24 @@
+cmake_minimum_required(VERSION 3.15)
+project(MemoryPoolProject)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Main executable
+add_executable(memory_pool_demo
+    src/main.cpp
+    src/memory_pool.cpp
+)
+
+# Include directories
+target_include_directories(memory_pool_demo PRIVATE include)
+
+# Tests
+find_package(GTest REQUIRED)
+add_executable(tests
+    tests/tests.cpp
+    src/memory_pool.cpp
+)
+
+target_include_directories(tests PRIVATE include)
+target_link_libraries(tests GTest::gtest GTest::gtest_main)
