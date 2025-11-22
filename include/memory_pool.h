@@ -2,6 +2,7 @@
 
 #include <memory_resource>
 #include <list>
+#include <vector>
 #include <cstddef>
 
 class FixedBlockMemoryResource : public std::pmr::memory_resource {
@@ -13,6 +14,7 @@ private:
     
     std::size_t block_size_;
     std::list<BlockInfo> allocated_blocks_;
+    std::vector<void*> free_blocks_;
     std::pmr::memory_resource* upstream_;
     
 public:
@@ -26,6 +28,7 @@ public:
     
     std::size_t get_block_size() const { return block_size_; }
     std::size_t get_allocated_count() const { return allocated_blocks_.size(); }
+    std::size_t get_free_blocks_count() const { return free_blocks_.size(); }
 
 protected:
     void* do_allocate(std::size_t bytes, std::size_t alignment) override;

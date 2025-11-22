@@ -14,13 +14,9 @@ private:
         Node* prev;
         Node* next;
         
-        // Простой конструктор для создания данных
         template<typename... Args>
         Node(Args&&... args) 
             : data(std::forward<Args>(args)...), prev(nullptr), next(nullptr) {}
-            
-        // Конструктор с указателями
-        Node(Node* p, Node* n) : data(), prev(p), next(n) {}
     };
     
     using allocator_type = std::pmr::polymorphic_allocator<Node>;
@@ -30,7 +26,6 @@ private:
     std::size_t size_;
     
 public:
-    // Итератор
     class Iterator {
     private:
         Node* current_;
@@ -64,7 +59,6 @@ public:
         bool operator!=(const Iterator& other) const { return current_ != other.current_; }
     };
     
-    // Конструкторы
     explicit DoublyLinkedList(std::pmr::memory_resource* mr = std::pmr::get_default_resource())
         : alloc_(mr), head_(nullptr), tail_(nullptr), size_(0) {}
     
@@ -72,25 +66,24 @@ public:
         clear();
     }
     
-    // Итераторы
+    DoublyLinkedList(const DoublyLinkedList&) = delete;
+    DoublyLinkedList& operator=(const DoublyLinkedList&) = delete;
+    
     Iterator begin() { return Iterator(head_); }
     Iterator end() { return Iterator(nullptr); }
     Iterator begin() const { return Iterator(head_); }
     Iterator end() const { return Iterator(nullptr); }
     
-    // Модификаторы
     template<typename... Args>
     void emplace_back(Args&&... args) {
         Node* new_node = alloc_.allocate(1);
         try {
-            // Сначала создаем узел с данными
             alloc_.construct(new_node, std::forward<Args>(args)...);
         } catch (...) {
             alloc_.deallocate(new_node, 1);
             throw;
         }
         
-        // Затем настраиваем связи
         new_node->prev = tail_;
         new_node->next = nullptr;
         
@@ -115,14 +108,12 @@ public:
     void emplace_front(Args&&... args) {
         Node* new_node = alloc_.allocate(1);
         try {
-            // Сначала создаем узел с данными
             alloc_.construct(new_node, std::forward<Args>(args)...);
         } catch (...) {
             alloc_.deallocate(new_node, 1);
             throw;
         }
         
-        // Затем настраиваем связи
         new_node->prev = nullptr;
         new_node->next = head_;
         
@@ -183,7 +174,6 @@ public:
         }
     }
     
-    // Доступ к элементам
     T& front() { 
         if (!head_) throw std::runtime_error("List is empty");
         return head_->data; 
@@ -204,7 +194,6 @@ public:
         return tail_->data; 
     }
     
-    // Размер
     std::size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
 };
