@@ -5,19 +5,14 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Main executable
-add_executable(memory_pool_demo
+add_executable(memory
     src/main.cpp
     src/memory_pool.cpp
 )
 
-target_include_directories(memory_pool_demo PRIVATE include)
+target_include_directories(memory PRIVATE include)
 
-# Удаляем старые файлы GoogleTest если они есть
-if(EXISTS ${CMAKE_BINARY_DIR}/_deps)
-    file(REMOVE_RECURSE ${CMAKE_BINARY_DIR}/_deps)
-endif()
-
-# GoogleTest с явным указанием репозитория
+# GoogleTest через FetchContent
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -25,7 +20,7 @@ FetchContent_Declare(
   GIT_TAG release-1.12.1
 )
 
-# Для Windows может потребоваться отключить SSL проверку
+# Для Windows
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(googletest)

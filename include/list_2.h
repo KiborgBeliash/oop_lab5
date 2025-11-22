@@ -3,6 +3,8 @@
 #include <memory_resource>
 #include <iterator>
 #include <memory>
+#include <stdexcept>
+#include <utility>
 
 template<typename T>
 class DoublyLinkedList {
@@ -12,9 +14,13 @@ private:
         Node* prev;
         Node* next;
         
+        // Простой конструктор для создания данных
         template<typename... Args>
-        Node(Args&&... args, Node* p = nullptr, Node* n = nullptr)
-            : data(std::forward<Args>(args)...), prev(p), next(n) {}
+        Node(Args&&... args) 
+            : data(std::forward<Args>(args)...), prev(nullptr), next(nullptr) {}
+            
+        // Конструктор с указателями
+        Node(Node* p, Node* n) : data(), prev(p), next(n) {}
     };
     
     using allocator_type = std::pmr::polymorphic_allocator<Node>;
@@ -42,7 +48,9 @@ public:
         pointer operator->() const { return &current_->data; }
         
         Iterator& operator++() {
-            current_ = current_->next;
+            if (current_) {
+                current_ = current_->next;
+            }
             return *this;
         }
         
@@ -64,24 +72,6 @@ public:
         clear();
     }
     
-    // Копирование и перемещение
-    DoublyLinkedList(const DoublyLinkedList& other) 
-        : alloc_(other.alloc_), head_(nullptr), tail_(nullptr), size_(0) {
-        for (const auto& item : other) {
-            push_back(item);
-        }
-    }
-    
-    DoublyLinkedList& operator=(const DoublyLinkedList& other) {
-        if (this != &other) {
-            clear();
-            for (const auto& item : other) {
-                push_back(item);
-            }
-        }
-        return *this;
-    }
-    
     // Итераторы
     Iterator begin() { return Iterator(head_); }
     Iterator end() { return Iterator(nullptr); }
@@ -91,20 +81,23 @@ public:
     // Модификаторы
     template<typename... Args>
     void emplace_back(Args&&... args) {
-        // Используем allocate и конструктор вместо new_object
         Node* new_node = alloc_.allocate(1);
         try {
+            // Сначала создаем узел с данными
             alloc_.construct(new_node, std::forward<Args>(args)...);
         } catch (...) {
             alloc_.deallocate(new_node, 1);
             throw;
         }
         
+        // Затем настраиваем связи
+        new_node->prev = tail_;
+        new_node->next = nullptr;
+        
         if (!head_) {
             head_ = tail_ = new_node;
         } else {
             tail_->next = new_node;
-            new_node->prev = tail_;
             tail_ = new_node;
         }
         ++size_;
@@ -122,16 +115,20 @@ public:
     void emplace_front(Args&&... args) {
         Node* new_node = alloc_.allocate(1);
         try {
+            // Сначала создаем узел с данными
             alloc_.construct(new_node, std::forward<Args>(args)...);
         } catch (...) {
             alloc_.deallocate(new_node, 1);
             throw;
         }
         
+        // Затем настраиваем связи
+        new_node->prev = nullptr;
+        new_node->next = head_;
+        
         if (!head_) {
             head_ = tail_ = new_node;
         } else {
-            new_node->next = head_;
             head_->prev = new_node;
             head_ = new_node;
         }
@@ -158,7 +155,6 @@ public:
             head_ = nullptr;
         }
         
-        // Используем destroy и deallocate вместо delete_object
         alloc_.destroy(to_delete);
         alloc_.deallocate(to_delete, 1);
         --size_;
@@ -188,10 +184,25 @@ public:
     }
     
     // Доступ к элементам
-    T& front() { return head_->data; }
-    const T& front() const { return head_->data; }
-    T& back() { return tail_->data; }
-    const T& back() const { return tail_->data; }
+    T& front() { 
+        if (!head_) throw std::runtime_error("List is empty");
+        return head_->data; 
+    }
+    
+    const T& front() const { 
+        if (!head_) throw std::runtime_error("List is empty");
+        return head_->data; 
+    }
+    
+    T& back() { 
+        if (!tail_) throw std::runtime_error("List is empty");
+        return tail_->data; 
+    }
+    
+    const T& back() const { 
+        if (!tail_) throw std::runtime_error("List is empty");
+        return tail_->data; 
+    }
     
     // Размер
     std::size_t size() const { return size_; }

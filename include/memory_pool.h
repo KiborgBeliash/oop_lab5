@@ -4,25 +4,25 @@
 #include <list>
 #include <cstddef>
 
-class fixed_block_memory_resource : public std::pmr::memory_resource {
+class FixedBlockMemoryResource : public std::pmr::memory_resource {
 private:
-    struct block_info {
+    struct BlockInfo {
         void* ptr;
         std::size_t size;
     };
     
     std::size_t block_size_;
-    std::list<block_info> allocated_blocks_;
+    std::list<BlockInfo> allocated_blocks_;
     std::pmr::memory_resource* upstream_;
     
 public:
-    explicit fixed_block_memory_resource(std::size_t block_size, 
-                                       std::pmr::memory_resource* upstream = std::pmr::get_default_resource());
+    explicit FixedBlockMemoryResource(std::size_t block_size, 
+                                     std::pmr::memory_resource* upstream = std::pmr::get_default_resource());
     
-    fixed_block_memory_resource(const fixed_block_memory_resource&) = delete;
-    fixed_block_memory_resource& operator=(const fixed_block_memory_resource&) = delete;
+    FixedBlockMemoryResource(const FixedBlockMemoryResource&) = delete;
+    FixedBlockMemoryResource& operator=(const FixedBlockMemoryResource&) = delete;
     
-    ~fixed_block_memory_resource() override;
+    ~FixedBlockMemoryResource() override;
     
     std::size_t get_block_size() const { return block_size_; }
     std::size_t get_allocated_count() const { return allocated_blocks_.size(); }

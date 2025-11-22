@@ -1,65 +1,103 @@
 #include <iostream>
 #include <string>
 #include "memory_pool.h"
-#include "queue.h"
+#include "list_2.h"
 
-struct complex_type {
+// Сложная структура для демонстрации
+struct ComplexType {
     int id;
     double value;
     std::string name;
     
-    complex_type(int i = 0, double v = 0.0, const std::string& n = "")
+    ComplexType(int i = 0, double v = 0.0, const std::string& n = "")
         : id(i), value(v), name(n) {}
     
-    friend std::ostream& operator<<(std::ostream& os, const complex_type& ct) {
-        os << "complex_type{id=" << ct.id << ", value=" << ct.value << ", name=\"" << ct.name << "\"}";
+    friend std::ostream& operator<<(std::ostream& os, const ComplexType& ct) {
+        os << "ComplexType{id=" << ct.id << ", value=" << ct.value << ", name=\"" << ct.name << "\"}";
         return os;
     }
 };
 
 int main() {
-    fixed_block_memory_resource fixed_mr(256);
+    // Создаем memory_resource с размером блока 256 байт
+    FixedBlockMemoryResource fixed_mr(256);
     
-    std::cout << "=== Демонстрация с int ===\n";
+    std::cout << "=== Demonstration with int ===\n";
     
-    doubly_linked_list<int> int_list(&fixed_mr);
+    // Создаем список с использованием нашего memory_resource
+    DoublyLinkedList<int> int_list(&fixed_mr);
     
+    // Добавляем элементы
     for (int i = 1; i <= 5; ++i) {
         int_list.push_back(i * 10);
     }
     
-    std::cout << "Список: ";
+    // Выводим с помощью итератора
+    std::cout << "List: ";
     for (auto it = int_list.begin(); it != int_list.end(); ++it) {
         std::cout << *it << " ";
     }
     std::cout << "\n";
     
-    std::cout << "\n=== Демонстрация с complex_type ===\n";
+    // Демонстрация с сложным типом
+    std::cout << "\n=== Demonstration with ComplexType ===\n";
     
-    doubly_linked_list<complex_type> complex_list(&fixed_mr);
+    DoublyLinkedList<ComplexType> complex_list(&fixed_mr);
     
-    complex_list.emplace_back(1, 3.14, "first");
-    complex_list.emplace_back(2, 2.71, "second");
-    complex_list.emplace_back(3, 1.41, "third");
+    // Создаем объекты явно, затем добавляем
+    ComplexType ct1(3, 3.14, "first");
+    ComplexType ct2(4, 2.71, "second"); 
+    ComplexType ct3(5, 1.41, "third");
     
-    std::cout << "Список complex_type:\n";
+    complex_list.push_back(ct1);
+    complex_list.push_back(ct2);
+    complex_list.push_back(ct3);
+    
+    std::cout << "ComplexType list:\n";
     for (const auto& item : complex_list) {
         std::cout << "  " << item << "\n";
     }
     
-    std::cout << "\n=== Демонстрация модификаций ===\n";
+    // Демонстрация модификации
+    std::cout << "\n=== Demonstration of modifications ===\n";
     
+    //1 замена
     complex_list.pop_front();
-    complex_list.emplace_front(0, 0.0, "new_first");
-    
-    std::cout << "После модификаций:\n";
+    ComplexType new_front(2, 0.0, "new_trird");
+    complex_list.push_front(new_front);
+
+    std::cout << "After 1 modifications:\n";
     for (const auto& item : complex_list) {
         std::cout << "  " << item << "\n";
     }
     
-    std::cout << "\n=== Информация о memory_resource ===\n";
-    std::cout << "Размер блока: " << fixed_mr.get_block_size() << " байт\n";
-    std::cout << "Выделено блоков: " << fixed_mr.get_allocated_count() << "\n";
+    //2 замена
+    /*
+    complex_list.pop_back();
+    ComplexType new_front(1, 0.0, "new_second");
+    complex_list.push_front(new_front);
+
+    std::cout << "After 2 modifications:\n";
+    for (const auto& item : complex_list) {
+        std::cout << "  " << item << "\n";
+    }*/
+
+    //3 замена
+    /*
+    complex_list.pop_back();
+    ComplexType new_front(0, 0.0, "new_first");
+    complex_list.push_front(new_front);
+
+    std::cout << "After 3 modifications:\n";
+    for (const auto& item : complex_list) {
+        std::cout << "  " << item << "\n";
+    }
+    */
+    
+    // Информация о memory_resource
+    std::cout << "\n=== Memory resource information ===\n";
+    std::cout << "Block size: " << fixed_mr.get_block_size() << " bytes\n";
+    std::cout << "Allocated blocks: " << fixed_mr.get_allocated_count() << "\n";
     
     return 0;
 }

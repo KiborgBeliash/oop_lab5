@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include "memory_pool.h"
-#include "queue.h"
+#include "list_2.h"
 
 // Тесты для FixedBlockMemoryResource
 TEST(FixedBlockMemoryResourceTest, BasicAllocation) {
@@ -29,6 +29,24 @@ TEST(FixedBlockMemoryResourceTest, FixedBlockSize) {
     EXPECT_EQ(mr.get_allocated_count(), 1);
     
     mr.deallocate(ptr, 50);
+    EXPECT_EQ(mr.get_allocated_count(), 0);
+}
+
+TEST(FixedBlockMemoryResourceTest, ReuseMemory) {
+    FixedBlockMemoryResource mr(256);
+    
+    void* ptr1 = mr.allocate(100);
+    EXPECT_EQ(mr.get_allocated_count(), 1);
+    
+    mr.deallocate(ptr1, 100);
+    EXPECT_EQ(mr.get_allocated_count(), 0);
+    
+    // Память должна переиспользоваться
+    void* ptr2 = mr.allocate(150);
+    EXPECT_NE(ptr2, nullptr);
+    EXPECT_EQ(mr.get_allocated_count(), 1);
+    
+    mr.deallocate(ptr2, 150);
 }
 
 // Тесты для DoublyLinkedList с int
@@ -58,11 +76,14 @@ TEST(DoublyLinkedListTest, Iteration) {
     list.push_back(3);
     
     int sum = 0;
+    int count = 0;
     for (const auto& item : list) {
         sum += item;
+        count++;
     }
     
     EXPECT_EQ(sum, 6);
+    EXPECT_EQ(count, 3);
 }
 
 TEST(DoublyLinkedListTest, PushPopOperations) {
@@ -76,16 +97,33 @@ TEST(DoublyLinkedListTest, PushPopOperations) {
     
     EXPECT_EQ(list.front(), 1);
     EXPECT_EQ(list.back(), 4);
+    EXPECT_EQ(list.size(), 4);
     
     list.pop_front();
     EXPECT_EQ(list.front(), 2);
+    EXPECT_EQ(list.size(), 3);
     
     list.pop_back();
     EXPECT_EQ(list.back(), 3);
+    EXPECT_EQ(list.size(), 2);
 }
 
-// Тесты для ComplexType
-TEST(DoublyLinkedListTest, ComplexType) {
+TEST(DoublyLinkedListTest, Clear) {
+    FixedBlockMemoryResource mr(256);
+    DoublyLinkedList<int> list(&mr);
+    
+    list.push_back(1);
+    list.push_back(2);
+    list.push_back(3);
+    
+    EXPECT_EQ(list.size(), 3);
+    list.clear();
+    EXPECT_TRUE(list.empty());
+    EXPECT_EQ(list.size(), 0);
+}
+
+// Тесты для string
+TEST(DoublyLinkedListTest, StringType) {
     FixedBlockMemoryResource mr(256);
     DoublyLinkedList<std::string> list(&mr);
     
@@ -106,45 +144,81 @@ TEST(DoublyLinkedListTest, ComplexType) {
     EXPECT_TRUE(result.find("world") != std::string::npos);
 }
 
-TEST(DoublyLinkedListTest, EmplaceOperations) {
+TEST(DoublyLinkedListTest, MoveSemantics) {
     FixedBlockMemoryResource mr(256);
-    DoublyLinkedList<std::pair<int, std::string>> list(&mr);
+    DoublyLinkedList<std::string> list(&mr);
     
-    list.emplace_back(1, "one");
-    list.emplace_front(0, "zero");
-    list.emplace_back(2, "two");
+    std::string str = "test";
+    list.push_back(std::move(str));
     
-    EXPECT_EQ(list.size(), 3);
-    EXPECT_EQ(list.front().first, 0);
-    EXPECT_EQ(list.front().second, "zero");
-    EXPECT_EQ(list.back().first, 2);
-    EXPECT_EQ(list.back().second, "two");
+    EXPECT_TRUE(str.empty()); // строка должна быть перемещена
+    EXPECT_EQ(list.front(), "test");
 }
 
 // Структура для тестирования сложных типов
-struct TestStruct {
+struct ComplexType {
     int id;
     double value;
     std::string name;
     
-    TestStruct(int i = 0, double v = 0.0, const std::string& n = "")
+    ComplexType(int i = 0, double v = 0.0, const std::string& n = "")
         : id(i), value(v), name(n) {}
     
-    bool operator==(const TestStruct& other) const {
+    bool operator==(const ComplexType& other) const {
         return id == other.id && value == other.value && name == other.name;
     }
 };
 
-TEST(DoublyLinkedListTest, CustomStruct) {
+TEST(DoublyLinkedListTest, ComplexType) {
     FixedBlockMemoryResource mr(256);
-    DoublyLinkedList<TestStruct> list(&mr);
+    DoublyLinkedList<ComplexType> list(&mr);
     
-    list.emplace_back(1, 3.14, "first");
-    list.emplace_back(2, 2.71, "second");
+    ComplexType ct1(1, 3.14, "first");
+    ComplexType ct2(2, 2.71, "second");
+    
+    list.push_back(ct1);
+    list.push_back(ct2);
     
     EXPECT_EQ(list.size(), 2);
     EXPECT_EQ(list.front().id, 1);
+    EXPECT_EQ(list.front().value, 3.14);
+    EXPECT_EQ(list.front().name, "first");
+    EXPECT_EQ(list.back().id, 2);
     EXPECT_EQ(list.back().name, "second");
+}
+
+TEST(DoublyLinkedListTest, IteratorOperations) {
+    FixedBlockMemoryResource mr(256);
+    DoublyLinkedList<int> list(&mr);
+    
+    list.push_back(10);
+    list.push_back(20);
+    list.push_back(30);
+    
+    auto it = list.begin();
+    EXPECT_EQ(*it, 10);
+    ++it;
+    EXPECT_EQ(*it, 20);
+    it++;
+    EXPECT_EQ(*it, 30);
+    ++it;
+    EXPECT_EQ(it, list.end());
+}
+
+// Тест на использование разных memory_resource
+TEST(DoublyLinkedListTest, DifferentMemoryResources) {
+    FixedBlockMemoryResource mr1(128);
+    FixedBlockMemoryResource mr2(256);
+    
+    DoublyLinkedList<int> list1(&mr1);
+    DoublyLinkedList<int> list2(&mr2);
+    
+    list1.push_back(1);
+    list2.push_back(2);
+    
+    EXPECT_EQ(list1.front(), 1);
+    EXPECT_EQ(list2.front(), 2);
+    EXPECT_NE(&mr1, &mr2);
 }
 
 int main(int argc, char **argv) {
