@@ -2,31 +2,32 @@
 
 #include <memory_resource>
 #include <iterator>
-#include <cstddef>
+#include <memory>
 
 template<typename T>
-class doubly_linked_list {
+class DoublyLinkedList {
 private:
-    struct node {
+    struct Node {
         T data;
-        node* prev;
-        node* next;
+        Node* prev;
+        Node* next;
         
         template<typename... Args>
-        node(Args&&... args, node* p = nullptr, node* n = nullptr)
+        Node(Args&&... args, Node* p = nullptr, Node* n = nullptr)
             : data(std::forward<Args>(args)...), prev(p), next(n) {}
     };
     
-    using allocator_type = std::pmr::polymorphic_allocator<node>;
+    using allocator_type = std::pmr::polymorphic_allocator<Node>;
     allocator_type alloc_;
-    node* head_;
-    node* tail_;
+    Node* head_;
+    Node* tail_;
     std::size_t size_;
     
 public:
-    class iterator {
+    // Итератор
+    class Iterator {
     private:
-        node* current_;
+        Node* current_;
         
     public:
         using iterator_category = std::forward_iterator_tag;
@@ -35,43 +36,43 @@ public:
         using pointer = T*;
         using reference = T&;
         
-        explicit iterator(node* current = nullptr) : current_(current) {}
+        explicit Iterator(Node* current = nullptr) : current_(current) {}
         
         reference operator*() const { return current_->data; }
         pointer operator->() const { return &current_->data; }
         
-        iterator& operator++() {
+        Iterator& operator++() {
             current_ = current_->next;
             return *this;
         }
         
-        iterator operator++(int) {
-            iterator temp = *this;
+        Iterator operator++(int) {
+            Iterator temp = *this;
             ++(*this);
             return temp;
         }
         
-        bool operator==(const iterator& other) const { return current_ == other.current_; }
-        bool operator!=(const iterator& other) const { return current_ != other.current_; }
-        
-        node* get_node() const { return current_; }
+        bool operator==(const Iterator& other) const { return current_ == other.current_; }
+        bool operator!=(const Iterator& other) const { return current_ != other.current_; }
     };
     
-    explicit doubly_linked_list(std::pmr::memory_resource* mr = std::pmr::get_default_resource())
+    // Конструкторы
+    explicit DoublyLinkedList(std::pmr::memory_resource* mr = std::pmr::get_default_resource())
         : alloc_(mr), head_(nullptr), tail_(nullptr), size_(0) {}
     
-    ~doubly_linked_list() {
+    ~DoublyLinkedList() {
         clear();
     }
     
-    doubly_linked_list(const doubly_linked_list& other) 
+    // Копирование и перемещение
+    DoublyLinkedList(const DoublyLinkedList& other) 
         : alloc_(other.alloc_), head_(nullptr), tail_(nullptr), size_(0) {
         for (const auto& item : other) {
             push_back(item);
         }
     }
     
-    doubly_linked_list& operator=(const doubly_linked_list& other) {
+    DoublyLinkedList& operator=(const DoublyLinkedList& other) {
         if (this != &other) {
             clear();
             for (const auto& item : other) {
@@ -81,12 +82,23 @@ public:
         return *this;
     }
     
-    iterator begin() { return iterator(head_); }
-    iterator end() { return iterator(nullptr); }
+    // Итераторы
+    Iterator begin() { return Iterator(head_); }
+    Iterator end() { return Iterator(nullptr); }
+    Iterator begin() const { return Iterator(head_); }
+    Iterator end() const { return Iterator(nullptr); }
     
+    // Модификаторы
     template<typename... Args>
     void emplace_back(Args&&... args) {
-        node* new_node = alloc_.new_object<node>(std::forward<Args>(args)...);
+        // Используем allocate и конструктор вместо new_object
+        Node* new_node = alloc_.allocate(1);
+        try {
+            alloc_.construct(new_node, std::forward<Args>(args)...);
+        } catch (...) {
+            alloc_.deallocate(new_node, 1);
+            throw;
+        }
         
         if (!head_) {
             head_ = tail_ = new_node;
@@ -108,7 +120,13 @@ public:
     
     template<typename... Args>
     void emplace_front(Args&&... args) {
-        node* new_node = alloc_.new_object<node>(std::forward<Args>(args)...);
+        Node* new_node = alloc_.allocate(1);
+        try {
+            alloc_.construct(new_node, std::forward<Args>(args)...);
+        } catch (...) {
+            alloc_.deallocate(new_node, 1);
+            throw;
+        }
         
         if (!head_) {
             head_ = tail_ = new_node;
@@ -131,7 +149,7 @@ public:
     void pop_back() {
         if (!tail_) return;
         
-        node* to_delete = tail_;
+        Node* to_delete = tail_;
         tail_ = tail_->prev;
         
         if (tail_) {
@@ -140,14 +158,16 @@ public:
             head_ = nullptr;
         }
         
-        alloc_.delete_object(to_delete);
+        // Используем destroy и deallocate вместо delete_object
+        alloc_.destroy(to_delete);
+        alloc_.deallocate(to_delete, 1);
         --size_;
     }
     
     void pop_front() {
         if (!head_) return;
         
-        node* to_delete = head_;
+        Node* to_delete = head_;
         head_ = head_->next;
         
         if (head_) {
@@ -156,7 +176,8 @@ public:
             tail_ = nullptr;
         }
         
-        alloc_.delete_object(to_delete);
+        alloc_.destroy(to_delete);
+        alloc_.deallocate(to_delete, 1);
         --size_;
     }
     
@@ -166,11 +187,13 @@ public:
         }
     }
     
+    // Доступ к элементам
     T& front() { return head_->data; }
     const T& front() const { return head_->data; }
     T& back() { return tail_->data; }
     const T& back() const { return tail_->data; }
     
+    // Размер
     std::size_t size() const { return size_; }
     bool empty() const { return size_ == 0; }
 };
